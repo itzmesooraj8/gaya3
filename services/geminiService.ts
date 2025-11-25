@@ -6,6 +6,7 @@ import { ChatMode } from "../types";
 // Type declarations so import.meta.env is recognized by TypeScript
 interface ImportMetaEnv {
   readonly VITE_Jules_API_KEY?: string;
+  readonly MODE?: string;
 }
 
 declare global {
@@ -40,10 +41,18 @@ export const getJulesResponse = async (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage, history, mode })
       });
+      const json = await proxy.json();
       if (proxy.ok) {
-        const json = await proxy.json();
         return json.content || 'The ether is silent.';
       }
+      // If proxy returns a JSON error, surface the message in non-production; in production don't reveal internals.
+      const errorMsg = json?.error || proxy.statusText || 'Unknown proxy error';
+      if (isProduction) {
+        console.error('Proxy failed in production:', errorMsg);
+        return 'Gaya Concierge is temporarily unavailable. Please try again later.';
+      }
+      // Non-production fallback allowed for local testing
+      console.warn('Proxy returned error; falling back to client-side Jules call', errorMsg);
       // If proxy fails, in production DO NOT fall back to client-side key for security
       if (isProduction) {
         console.error('Proxy failed and running in production — not falling back to client key.');
