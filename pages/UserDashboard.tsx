@@ -38,7 +38,7 @@ const UserDashboard: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/home');
   };
 
   // --- ANIMATION VARIANTS ---

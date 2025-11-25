@@ -43,7 +43,7 @@ const Footer: React.FC = () => {
           
           {/* Brand Col */}
           <div className="col-span-2 md:col-span-1 space-y-6">
-            <Link to="/" className="font-display text-2xl font-bold tracking-widest">GAYA3</Link>
+            <Link to="/home" className="font-display text-2xl font-bold tracking-widest">GAYA3</Link>
             <p className="text-sm text-white/50 leading-relaxed">
               Liquid architecture for the modern nomad. Book unique stays, curated by AI, experienced by you.
             </p>
@@ -53,7 +53,7 @@ const Footer: React.FC = () => {
           <div className="space-y-6">
             <h4 className="font-display text-xs uppercase tracking-widest text-white/40">Explore</h4>
             <ul className="space-y-4">
-              <li><Link to="/" className="text-white/70 hover:text-white transition-colors">Sanctuaries</Link></li>
+              <li><Link to="/home" className="text-white/70 hover:text-white transition-colors">Sanctuaries</Link></li>
               <li><Link to="/dashboard" className="text-white/70 hover:text-white transition-colors">My Journeys</Link></li>
               <li><Link to="/auth" className="text-white/70 hover:text-white transition-colors">Membership</Link></li>
             </ul>

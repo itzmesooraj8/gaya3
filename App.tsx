@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import FluidBackground from './components/canvas/FluidBackground';
 import Navbar from './components/Navbar';
 import GayaChat from './components/GayaChat';
@@ -24,12 +24,13 @@ const App: React.FC = () => {
           <Navbar />
           
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={<Home />} />
             <Route path="/property/:id" element={<PropertyDetails />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/dashboard" element={<UserDashboard />} />
-            <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<Terms />} />
           </Routes>
 

@@ -14,13 +14,13 @@ const Navbar: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/home');
   };
 
   return (
     <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-2 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
-      <Link to="/">
-        <MagneticButton className={`p-3 rounded-full transition-all ${isActive('/')}`}>
+      <Link to="/home">
+        <MagneticButton className={`p-3 rounded-full transition-all ${isActive('/home')}`}>
           <Home size={20} />
         </MagneticButton>
       </Link>
