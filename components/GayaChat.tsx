@@ -103,10 +103,29 @@ const GayaChat: React.FC = () => {
       setAccessToken(token);
       window.location.hash = '';
     }
+    // Check for OAuth errors in URL query or hash
+    const searchParams = new URLSearchParams(window.location.search);
+    const err = searchParams.get('error') || new URLSearchParams(hashParamsFromLocation()).get('error');
+    if (err) {
+      console.error('OAuth error from redirect:', err, searchParams.get('error_description'));
+      alert('Google OAuth error: ' + err + '\nSee console for details. Ensure your redirect URI is registered in Google Cloud Console.');
+      // Clear params
+      const url = new URL(window.location.href);
+      url.search = '';
+      window.history.replaceState({}, document.title, url.toString());
+    }
   }, []);
 
+// Pull hash params as query string for error detection
+function hashParamsFromLocation() {
+  const h = window.location.hash.replace('#', '');
+  return h ? `?${h}` : '';
+}
+
   const handleGoogleLogin = () => {
-    const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=${OAUTH_SCOPE}`;
+    // Add prompt=select_account to show all accounts, include_granted_scopes for incremental permission, and state
+    const state = encodeURIComponent(JSON.stringify({ ts: Date.now(), nonce: Math.random().toString(36).slice(2) }));
+    const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=${OAUTH_SCOPE}&prompt=select_account&include_granted_scopes=true&state=${state}`;
     window.location.href = oauthUrl;
   };
 
