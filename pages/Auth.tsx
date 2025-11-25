@@ -5,6 +5,15 @@ import { useNavigate } from 'react-router-dom';
 import MagneticButton from '../components/ui/MagneticButton';
 import { useAuth } from '../contexts/AuthContext';
 
+const GOOGLE_CLIENT_ID = "528093127718-l3u2b57f4fvg2ogp1hodpjnebokch2v5.apps.googleusercontent.com";
+const REDIRECT_URI = window.location.origin;
+const OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+
+function handleGoogleAuth() {
+  const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=${OAUTH_SCOPE}`;
+  window.location.href = oauthUrl;
+}
+
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const navigate = useNavigate();
@@ -80,13 +89,24 @@ const Auth: React.FC = () => {
               </div>
 
               <div className="pt-4 space-y-3">
-                 <MagneticButton className="w-full">
+                <MagneticButton className="w-full">
                   <button 
                     className="w-full bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition-colors"
                   >
                     {isLogin ? 'ENTER PORTAL' : 'BEGIN JOURNEY'}
                   </button>
                 </MagneticButton>
+
+                <div className="pt-2">
+                  <button
+                    onClick={handleGoogleAuth}
+                    className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-black border border-white/20 text-white font-bold hover:bg-white/10 transition-all"
+                    style={{ fontFamily: 'inherit', fontSize: '1rem' }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 48 48"><g><path fill="#4285F4" d="M24 9.5c3.54 0 6.72 1.22 9.22 3.22l6.9-6.9C35.36 2.34 29.97 0 24 0 14.61 0 6.27 5.7 2.44 14.1l8.06 6.27C12.7 13.13 17.89 9.5 24 9.5z"/><path fill="#34A853" d="M46.1 24.5c0-1.54-.14-3.02-.39-4.45H24v8.44h12.44c-.54 2.9-2.16 5.36-4.6 7.02l7.18 5.59C43.73 37.13 46.1 31.33 46.1 24.5z"/><path fill="#FBBC05" d="M10.5 28.77c-1.13-3.36-1.13-6.97 0-10.33l-8.06-6.27C.81 16.61 0 20.19 0 24c0 3.81.81 7.39 2.44 10.83l8.06-6.27z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.14 15.91-5.83l-7.18-5.59c-2.01 1.35-4.59 2.13-8.73 2.13-6.11 0-11.3-3.63-13.5-8.77l-8.06 6.27C6.27 42.3 14.61 48 24 48z"/></g></svg>
+                    {isLogin ? 'Sign in with Google' : 'Sign up with Google'}
+                  </button>
+                </div>
 
                 {isLogin && (
                   <div className="grid grid-cols-2 gap-3 pt-4">

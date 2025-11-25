@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, X, Brain, Globe, MapPin, Zap, Send, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getGeminiResponse } from '../services/geminiService';
+import { getJulesResponse } from '../services/geminiService';
 import { ChatMessage, ChatMode } from '../types';
 
 // --- THEME CONFIGURATION ---
@@ -58,6 +58,17 @@ const MODES = [
   },
 ];
 
+
+const GOOGLE_CLIENT_ID = "528093127718-l3u2b57f4fvg2ogp1hodpjnebokch2v5.apps.googleusercontent.com";
+const REDIRECT_URI = window.location.origin;
+const OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+
+function getAccessTokenFromUrl() {
+  const hash = window.location.hash;
+  const params = new URLSearchParams(hash.replace('#', ''));
+  return params.get('access_token');
+}
+
 const GayaChat: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<ChatMode>('standard');
@@ -71,6 +82,7 @@ const GayaChat: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [accessToken, setAccessToken] = useState<string|null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Active Theme
@@ -82,8 +94,26 @@ const GayaChat: React.FC = () => {
     }
   }, [messages, isTyping]);
 
+  useEffect(() => {
+    const token = getAccessTokenFromUrl();
+    if (token) {
+      setAccessToken(token);
+      window.location.hash = '';
+    }
+  }, []);
+
+  const handleGoogleLogin = () => {
+    const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=${OAUTH_SCOPE}`;
+    window.location.href = oauthUrl;
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
+
+    if (!accessToken) {
+      alert('Please sign in with Google to use the chatbot.');
+      return;
+    }
 
     // 1. Add User Message
     const userMsg: ChatMessage = {
@@ -110,8 +140,8 @@ const GayaChat: React.FC = () => {
     setMessages(prev => [...prev, modelMsg]);
 
     try {
-      // 3. Get Groq Response
-      const response = await getGeminiResponse(userMsg.text, history, mode);
+      // 3. Get Jules Response
+      const response = await getJulesResponse(userMsg.text, history, mode);
       setIsTyping(false);
       setMessages(prev => prev.map(msg => {
         if (msg.id === modelMsgId) {
@@ -123,13 +153,13 @@ const GayaChat: React.FC = () => {
         return msg;
       }));
     } catch (error: any) {
-      console.error("Groq error", error);
+      console.error("Jules error", error);
       setIsTyping(false);
       setMessages(prev => prev.map(msg => {
         if (msg.id === modelMsgId) {
           return {
             ...msg,
-            text: `Error: ${error?.message || error?.toString() || "Unknown error"}\nCheck your API key, network, and browser console for details.`
+            text: `Error: ${error?.message || error?.toString() || "Unknown error"}\nCheck your authentication, network, and browser console for details.`
           };
         }
         return msg;
@@ -154,7 +184,6 @@ const GayaChat: React.FC = () => {
               <div className={`absolute inset-0 bg-gradient-to-tr ${activeTheme.gradient} opacity-20`} />
               <Sparkles className={activeTheme.color} size={20} />
               <span className="font-display text-sm tracking-widest text-white relative z-10">ASK GAYA</span>
-              
               {/* Pulse Effect */}
               <div className={`absolute inset-0 rounded-full border ${activeTheme.border} animate-ping opacity-20`} />
             </motion.button>
@@ -174,7 +203,6 @@ const GayaChat: React.FC = () => {
             {/* Header */}
             <div className={`p-5 border-b border-white/5 flex justify-between items-center relative overflow-hidden transition-colors duration-500`}>
               <div className={`absolute inset-0 bg-gradient-to-r ${activeTheme.gradient} opacity-10`} />
-              
               <div className="flex items-center gap-4 relative z-10">
                 <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${activeTheme.gradient} flex items-center justify-center shadow-lg`}>
                   <activeTheme.icon size={18} className="text-white" />
@@ -184,7 +212,6 @@ const GayaChat: React.FC = () => {
                   <p className={`text-xs uppercase tracking-wider font-medium opacity-70 ${activeTheme.color}`}>{activeTheme.desc}</p>
                 </div>
               </div>
-              
               <button 
                 onClick={() => setIsOpen(false)}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors relative z-10"
@@ -195,6 +222,13 @@ const GayaChat: React.FC = () => {
 
             {/* Chat Area */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-6">
+              {!accessToken && (
+                <div className="flex justify-center mb-4">
+                  <button onClick={handleGoogleLogin} style={{ margin: '1em', padding: '0.5em 1em', background: '#4285F4', color: '#fff', border: 'none', borderRadius: '4px' }}>
+                    Sign in with Google
+                  </button>
+                </div>
+              )}
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
@@ -215,7 +249,6 @@ const GayaChat: React.FC = () => {
                     )}
                     <div className="relative z-10 whitespace-pre-wrap">{msg.text}</div>
                   </div>
-
                   {/* Grounding Chips */}
                   {msg.groundingMetadata?.groundingChunks && msg.groundingMetadata.groundingChunks.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2 max-w-[85%]">
@@ -223,14 +256,13 @@ const GayaChat: React.FC = () => {
                          const uri = chunk.web?.uri || chunk.maps?.uri;
                          const title = chunk.web?.title || chunk.maps?.title;
                          if(!uri || !title) return null;
-                         
                          return (
                           <a 
                             key={i} 
                             href={uri} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className={`flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full border transition-all hover:brightness-110 ${
+                            className={`flex items-center gap-2 text-[10px] px-3 py-1 rounded-full border transition-all hover:brightness-110 ${
                               chunk.maps 
                                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' 
                                 : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300'
@@ -246,7 +278,6 @@ const GayaChat: React.FC = () => {
                   )}
                 </motion.div>
               ))}
-              
               {isTyping && (
                 <motion.div 
                   initial={{ opacity: 0 }} 
@@ -259,7 +290,6 @@ const GayaChat: React.FC = () => {
                 </motion.div>
               )}
             </div>
-
             {/* Mode Switcher & Input */}
             <div className="bg-black/40 backdrop-blur-md border-t border-white/5">
               {/* Mode Icons */}

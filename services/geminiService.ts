@@ -1,5 +1,5 @@
 
-import Groq from "groq-sdk";
+// import Groq from "groq-sdk"; // Removed for Jules integration
 import { ChatMode } from "../types";
 
 
@@ -14,9 +14,8 @@ declare global {
   }
 }
 
-// Initialize Groq Client with the key from .env
+// Use Jules API key from .env
 const apiKey = import.meta.env.VITE_Jules_API_KEY || '';
-const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
 
 const PERSONAS: Record<string, string> = {
   standard: `You are GAYA, a high-end aesthetic concierge. You speak in poetic, flowing prose (no lists). You focus on "vibes," emotions, and sensory details. If a user asks for a trip, describe the *feeling* of the air, the texture of the sheets, and the mood of the light. Be mysterious and alluring.`,
@@ -26,43 +25,50 @@ const PERSONAS: Record<string, string> = {
   fast: `You are FAST, a silent butler. You are purely transactional. Do not chat. Do not explain. Just confirm actions. Use extremely brief phrases like "Confirmed," "Booked," "Car dispatched." Your goal is zero friction.`
 };
 
-export const getGeminiResponse = async (
-  userMessage: string, 
-  history: string[], 
+export const getJulesResponse = async (
+  userMessage: string,
+  history: string[],
   mode: ChatMode = 'standard'
 ): Promise<string> => {
   try {
     if (!apiKey) {
-      console.error("CRITICAL: Groq API Key is missing!");
+      console.error("CRITICAL: Jules API Key is missing!");
       return "I cannot connect to the ether. (Missing API Key)";
     }
 
     // Prepare the conversation history
     const context = history.join('\n');
-
     const persona = PERSONAS[mode] || PERSONAS['standard'];
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: persona
+
+    // Example Jules API endpoint and payload (update as needed for your use case)
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta2/models/chat-bison-001:generateMessage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        prompt: {
+          context: persona,
+          examples: [],
+          messages: [
+            { content: `[Conversation History]:\n${context}\n\n[User Request]: ${userMessage}` }
+          ]
         },
-        {
-          role: "user",
-          content: `[Conversation History]:\n${context}\n\n[User Request]: ${userMessage}`
-        }
-      ],
-      // Llama 3 70B is free on Groq and very smart
-      model: "mixtral-8x7b-32768", 
-      
-      // Creative for Gaya, Precise for Deep/Fast
-      temperature: (mode === 'thinking' || mode === 'fast' || mode === 'maps') ? 0.2 : 0.8,
-      max_tokens: 1024,
+        temperature: (mode === 'thinking' || mode === 'fast' || mode === 'maps') ? 0.2 : 0.8,
+        candidate_count: 1
+      })
     });
 
-    return chatCompletion.choices[0]?.message?.content || "The ether is silent.";
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("Jules Error:", error);
+      return `Jules API Error: ${error.error?.message || response.statusText}`;
+    }
+    const data = await response.json();
+    return data.candidates?.[0]?.content || "The ether is silent.";
   } catch (error: any) {
-    console.error("Groq Error:", error);
-    return "I am currently realigning my neural pathways. (Groq Connection Error)";
+    console.error("Jules Error:", error);
+    return "I am currently realigning my neural pathways. (Jules Connection Error)";
   }
 };

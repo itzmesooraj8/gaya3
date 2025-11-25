@@ -4,11 +4,14 @@ import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import FluidBackground from './components/canvas/FluidBackground';
 import Navbar from './components/Navbar';
 import GayaChat from './components/GayaChat';
+import Footer from './components/Footer';
 import Home from './pages/Home';
 import PropertyDetails from './pages/PropertyDetails';
 import Auth from './pages/Auth';
 import Admin from './pages/Admin';
 import UserDashboard from './pages/UserDashboard';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Terms from './pages/Terms';
 import { AuthProvider } from './contexts/AuthContext';
 
 const App: React.FC = () => {
@@ -26,9 +29,12 @@ const App: React.FC = () => {
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<Terms />} />
           </Routes>
 
           <GayaChat />
+          <Footer />
         </div>
       </Router>
     </AuthProvider>
