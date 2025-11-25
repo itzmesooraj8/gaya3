@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Instagram, Twitter, Linkedin, ArrowRight, Send } from 'lucide-react';
 import MagneticButton from './ui/MagneticButton';
+import OAuthDebug from './OAuthDebug';
 
 const Footer: React.FC = () => {
   return (
@@ -91,6 +92,11 @@ const Footer: React.FC = () => {
           </div>
         </div>
       </div>
+      {import.meta.env.VITE_ENABLE_DEBUG === 'true' && (
+        <div className="max-w-7xl mx-auto px-6 md:px-12 mt-6">
+          <OAuthDebug />
+        </div>
+      )}
       
       {/* Massive Watermark */}
       <div className="absolute -bottom-24 left-0 w-full overflow-hidden pointer-events-none opacity-[0.03]">

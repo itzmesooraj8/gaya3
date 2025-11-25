@@ -107,8 +107,11 @@ const GayaChat: React.FC = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const err = searchParams.get('error') || new URLSearchParams(hashParamsFromLocation()).get('error');
     if (err) {
-      console.error('OAuth error from redirect:', err, searchParams.get('error_description'));
-      alert('Google OAuth error: ' + err + '\nSee console for details. Ensure your redirect URI is registered in Google Cloud Console.');
+      const desc = searchParams.get('error_description') || '';
+      const redirectUri = REDIRECT_URI;
+      console.error('OAuth error from redirect:', err, desc);
+      // Show a helpful error to the user including the redirect URI
+      alert(`Google OAuth error: ${err}\n${desc}\n\nRedirect URI used: ${redirectUri}\nPlease ensure this exact URI is authorized in the Google Cloud Console.`);
       // Clear params
       const url = new URL(window.location.href);
       url.search = '';
@@ -127,6 +130,15 @@ function hashParamsFromLocation() {
     const state = encodeURIComponent(JSON.stringify({ ts: Date.now(), nonce: Math.random().toString(36).slice(2) }));
     const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=${OAUTH_SCOPE}&prompt=select_account&include_granted_scopes=true&state=${state}`;
     window.location.href = oauthUrl;
+  };
+
+  const handleGoogleLogout = () => {
+    setAccessToken(null);
+    // Also clear any auth details and try redirecting to Google logout to force account switch
+    // Use Google's logout endpoint to clear the current session (best-effort)
+    try {
+      window.location.href = 'https://accounts.google.com/Logout';
+    } catch (err) { console.warn('Error logging out', err); }
   };
 
   const handleSend = async () => {
@@ -252,6 +264,11 @@ function hashParamsFromLocation() {
                   <button onClick={handleGoogleLogin} style={{ margin: '1em', padding: '0.5em 1em', background: '#4285F4', color: '#fff', border: 'none', borderRadius: '4px' }}>
                     Sign in with Google
                   </button>
+                </div>
+              )}
+              {accessToken && (
+                <div className="flex justify-center mb-4">
+                  <button onClick={handleGoogleLogout} style={{margin:'1em', padding:'0.5em 1em', background:'#c23', color:'#fff', border:'none', borderRadius:'4px'}}>Sign out</button>
                 </div>
               )}
               {messages.map((msg) => (
