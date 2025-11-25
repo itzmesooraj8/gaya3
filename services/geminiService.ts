@@ -1,127 +1,68 @@
-import { GoogleGenAI } from "@google/genai";
-import { ChatMode, GroundingMetadata } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import Groq from "groq-sdk";
+import { ChatMode } from "../types";
 
-interface GeminiChunk {
-  text: string;
-  groundingMetadata?: GroundingMetadata;
+
+// Type declarations so import.meta.env is recognized by TypeScript
+interface ImportMetaEnv {
+  readonly VITE_Jules_API_KEY?: string;
 }
 
-// --- PERSONAS & INSTRUCTIONS ---
+declare global {
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
 
-const SYSTEM_INSTRUCTIONS = {
-  standard: `You are GAYA (The Muse), an aesthetic, poetic concierge. 
-  Style: Ethereal, emotional, evocative. Focus on vibes, atmosphere, and sensory details.
-  Constraint: Keep responses short, chic, and inspiring. Do not use markdown lists. Speak like a curator of high art.`,
-  
-  thinking: `You are DEEP (The Strategist), an analytical travel logistics expert.
-  Style: Structured, logical, comprehensive. Solve complex itinerary problems and potential conflicts.
-  Constraint: Provide reasoning for your suggestions. Anticipate travel friction points.`,
-  
-  search: `You are WEB (The Insider), a trend-aware socialite.
-  Style: Up-to-the-minute, pop-culture savvy, knowing "what's hot" right now.
-  Constraint: Focus on live events, recent reviews, and trending spots.`,
-  
-  maps: `You are MAPS (The Curator), a spatial discovery guide.
-  Style: Directional, focused on proximity and hidden gems nearby.
-  Constraint: Prioritize location context, distances, and neighborhood vibes.`,
-  
-  fast: `You are FAST (The Butler), a transactional utility agent.
-  Style: Direct, concise, action-oriented. No fluff.
-  Constraint: Answer in 1-2 sentences maximum. Focus on facts and immediate next steps.`
+// Initialize Groq Client with the key from .env
+const apiKey = import.meta.env.VITE_Jules_API_KEY || '';
+const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+
+const PERSONAS: Record<string, string> = {
+  standard: `You are GAYA, a high-end aesthetic concierge. You speak in poetic, flowing prose (no lists). You focus on "vibes," emotions, and sensory details. If a user asks for a trip, describe the *feeling* of the air, the texture of the sheets, and the mood of the light. Be mysterious and alluring.`,
+  thinking: `You are DEEP, a logistical super-intelligence. You solve complex travel constraints. You are precise, analytical, and structured. Use bullet points and percentages. Anticipate problems (traffic, weather, conflicts) before the user asks. Your goal is optimization and feasibility.`,
+  search: `You are WEB, the ultimate insider. You know what is "cool" right now. You ignore tourist traps and focus on underground events, pop-ups, and social signals. You speak like a trendsetter—short, punchy, and "in the know."`,
+  maps: `You are MAPS, a spatial curator. You describe the world in terms of "routes" and "proximity." Do not give generic addresses; give directions based on landmarks and "scenic value." Suggest walking paths that maximize beauty.`,
+  fast: `You are FAST, a silent butler. You are purely transactional. Do not chat. Do not explain. Just confirm actions. Use extremely brief phrases like "Confirmed," "Booked," "Car dispatched." Your goal is zero friction.`
 };
 
-// Helper to get user location for Maps Grounding
-const getUserLocation = async (): Promise<{latitude: number, longitude: number} | undefined> => {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve(undefined);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
-        });
-      },
-      (error) => {
-        console.warn("Geolocation access denied or failed:", error);
-        resolve(undefined);
-      },
-      { timeout: 5000 }
-    );
-  });
-};
-
-/**
- * Streams the response from Gemini to provide low-latency feedback to the user.
- */
-export const streamGeminiResponse = async function* (
+export const getGeminiResponse = async (
   userMessage: string, 
   history: string[], 
   mode: ChatMode = 'standard'
-): AsyncGenerator<GeminiChunk> {
-  let model = 'gemini-3-pro-preview';
-  let config: any = {
-    systemInstruction: SYSTEM_INSTRUCTIONS[mode],
-  };
-
-  // Configure model and settings based on selected mode
-  switch (mode) {
-    case 'thinking':
-      model = 'gemini-3-pro-preview';
-      config.thinkingConfig = { thinkingBudget: 32768 }; // Max thinking for complex tasks
-      break;
-
-    case 'search':
-      model = 'gemini-2.5-flash';
-      config.tools = [{ googleSearch: {} }];
-      break;
-
-    case 'maps':
-      model = 'gemini-2.5-flash';
-      config.tools = [{ googleMaps: {} }];
-      // Retrieve real user location for context-aware maps results
-      const location = await getUserLocation();
-      if (location) {
-        config.toolConfig = {
-          retrievalConfig: {
-            latLng: location
-          }
-        };
-      }
-      break;
-
-    case 'fast':
-      model = 'gemini-2.5-flash-lite'; // Lowest latency model
-      break;
-
-    case 'standard':
-    default:
-      model = 'gemini-3-pro-preview'; // High quality creative model
-      break;
-  }
-
+): Promise<string> => {
   try {
-    const responseStream = await ai.models.generateContentStream({
-      model: model,
-      contents: `
-        History: ${history.join('\n')}
-        User: ${userMessage}
-      `,
-      config: config
+    if (!apiKey) {
+      console.error("CRITICAL: Groq API Key is missing!");
+      return "I cannot connect to the ether. (Missing API Key)";
+    }
+
+    // Prepare the conversation history
+    const context = history.join('\n');
+
+    const persona = PERSONAS[mode] || PERSONAS['standard'];
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: persona
+        },
+        {
+          role: "user",
+          content: `[Conversation History]:\n${context}\n\n[User Request]: ${userMessage}`
+        }
+      ],
+      // Llama 3 70B is free on Groq and very smart
+      model: "mixtral-8x7b-32768", 
+      
+      // Creative for Gaya, Precise for Deep/Fast
+      temperature: (mode === 'thinking' || mode === 'fast' || mode === 'maps') ? 0.2 : 0.8,
+      max_tokens: 1024,
     });
 
-    for await (const chunk of responseStream) {
-      yield {
-        text: chunk.text || "",
-        groundingMetadata: chunk.candidates?.[0]?.groundingMetadata as GroundingMetadata
-      };
-    }
-  } catch (error) {
-    console.error("Gemini Streaming Error:", error);
-    yield { text: "I am currently realigning my neural pathways. Please try again momentarily." };
+    return chatCompletion.choices[0]?.message?.content || "The ether is silent.";
+  } catch (error: any) {
+    console.error("Groq Error:", error);
+    return "I am currently realigning my neural pathways. (Groq Connection Error)";
   }
 };

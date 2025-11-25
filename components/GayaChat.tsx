@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, X, Brain, Globe, MapPin, Zap, Send, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { streamGeminiResponse } from '../services/geminiService';
+import { getGeminiResponse } from '../services/geminiService';
 import { ChatMessage, ChatMode } from '../types';
 
 // --- THEME CONFIGURATION ---
@@ -110,31 +110,30 @@ const GayaChat: React.FC = () => {
     setMessages(prev => [...prev, modelMsg]);
 
     try {
-      // 3. Stream Response
-      const stream = streamGeminiResponse(userMsg.text, history, mode);
-      
-      let hasReceivedFirstToken = false;
-
-      for await (const chunk of stream) {
-        if (!hasReceivedFirstToken) {
-          setIsTyping(false); // Stop typing animation as soon as data arrives
-          hasReceivedFirstToken = true;
-        }
-
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === modelMsgId) {
-            return {
-              ...msg,
-              text: msg.text + chunk.text,
-              groundingMetadata: chunk.groundingMetadata || msg.groundingMetadata
-            };
-          }
-          return msg;
-        }));
-      }
-    } catch (error) {
-      console.error("Streaming error", error);
+      // 3. Get Groq Response
+      const response = await getGeminiResponse(userMsg.text, history, mode);
       setIsTyping(false);
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === modelMsgId) {
+          return {
+            ...msg,
+            text: response
+          };
+        }
+        return msg;
+      }));
+    } catch (error: any) {
+      console.error("Groq error", error);
+      setIsTyping(false);
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === modelMsgId) {
+          return {
+            ...msg,
+            text: `Error: ${error?.message || error?.toString() || "Unknown error"}\nCheck your API key, network, and browser console for details.`
+          };
+        }
+        return msg;
+      }));
     }
   };
 
@@ -263,7 +262,6 @@ const GayaChat: React.FC = () => {
 
             {/* Mode Switcher & Input */}
             <div className="bg-black/40 backdrop-blur-md border-t border-white/5">
-              
               {/* Mode Icons */}
               <div className="px-4 py-3 flex justify-between">
                 {MODES.map((m) => {
@@ -284,19 +282,15 @@ const GayaChat: React.FC = () => {
                           className={`transition-colors duration-300 ${isActive ? m.color : 'text-white/30 group-hover:text-white/70'}`} 
                         />
                       </div>
-                      
                       {/* Tooltip on Hover */}
-                      <span className={`absolute -top-8 text-[9px] uppercase tracking-widest bg-black border border-white/10 px-2 py-1 rounded transition-opacity duration-200 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0'}`}>
-                        {m.label}
-                      </span>
+                      <span className={`absolute -top-8 text-[9px] uppercase tracking-widest bg-black border border-white/10 px-2 py-1 rounded transition-opacity duration-200 pointer-events-none ${isActive ? 'opacity-100' : 'opacity-0'}`}></span>
                     </button>
                   );
                 })}
               </div>
-
               {/* Input Area */}
               <div className="p-4 pt-0 pb-6">
-                <div className={`relative flex items-center transition-all duration-300 group ${isTyping ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className={`relative flex items-center transition-all duration-300 group ${isTyping ? 'opacity-50 pointer-events-none' : ''}`}> 
                   <input
                     type="text"
                     value={input}
@@ -305,7 +299,6 @@ const GayaChat: React.FC = () => {
                     placeholder={`Ask ${activeTheme.label} about ${activeTheme.desc.toLowerCase()}...`}
                     className={`w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-5 pr-14 text-sm text-white focus:outline-none focus:border-white/20 transition-all placeholder:text-white/20 focus:bg-white/10`}
                   />
-                  
                   <motion.button 
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
