@@ -31,9 +31,22 @@ export const getJulesResponse = async (
   mode: ChatMode = 'standard'
 ): Promise<string> => {
   try {
-    if (!apiKey) {
-      console.error("CRITICAL: Jules API Key is missing!");
-      return "I cannot connect to the ether. (Missing API Key)";
+    // Prefer server-side proxy — avoids exposing API key in client bundles
+    const proxyUrl = '/api/chat';
+    try {
+      const proxy = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage, history, mode })
+      });
+      if (proxy.ok) {
+        const json = await proxy.json();
+        return json.content || 'The ether is silent.';
+      }
+      // If proxy fails, fall back to client-side API key (useful for local testing)
+      console.warn('Proxy failed; falling back to client-side Jules call');
+    } catch (err) {
+      console.warn('Proxy failed; falling back to client-side Jules call', err);
     }
 
     // Prepare the conversation history
