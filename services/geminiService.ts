@@ -33,6 +33,7 @@ export const getJulesResponse = async (
   try {
     // Prefer server-side proxy — avoids exposing API key in client bundles
     const proxyUrl = '/api/chat';
+    const isProduction = import.meta.env.MODE === 'production';
     try {
       const proxy = await fetch(proxyUrl, {
         method: 'POST',
@@ -43,7 +44,12 @@ export const getJulesResponse = async (
         const json = await proxy.json();
         return json.content || 'The ether is silent.';
       }
-      // If proxy fails, fall back to client-side API key (useful for local testing)
+      // If proxy fails, in production DO NOT fall back to client-side key for security
+      if (isProduction) {
+        console.error('Proxy failed and running in production — not falling back to client key.');
+        return 'Gaya Concierge is temporarily unavailable. Please try again later.';
+      }
+      // Non-production fallback allowed for local testing
       console.warn('Proxy failed; falling back to client-side Jules call');
     } catch (err) {
       console.warn('Proxy failed; falling back to client-side Jules call', err);
