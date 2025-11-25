@@ -28,8 +28,10 @@ const DEFAULT_CACHE_TTL = Number(process.env.CACHE_TTL || 60);
 const MAX_MESSAGE_LENGTH = Number(process.env.MAX_MESSAGE_LENGTH || 2000);
 const MAX_HISTORY_ITEMS = Number(process.env.MAX_HISTORY_ITEMS || 20);
 
-function getIpFromRequest(req: any): string {
-  // Vercel forwards x-forwarded-for; fallback to remoteAddress
+function getRequesterKey(req: any): string {
+  // Prefer an authenticated user id header if provided, otherwise fallback to IP
+  const userIdHeader = req.headers['x-user-id'] || req.headers['authorization'];
+  if (userIdHeader) return userIdHeader.toString();
   const header = req.headers['x-forwarded-for'] || req.headers['x-real-ip'];
   if (header) return header.toString().split(',')[0].trim();
   return req.socket?.remoteAddress || 'unknown';
@@ -96,10 +98,10 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const requestId = crypto.randomUUID();
-  const ip = getIpFromRequest(req);
+  const requesterKey = getRequesterKey(req);
   const { message, history = [], mode = 'standard' } = req.body || {};
 
-  structuredLog('info', { requestId, ip, note: 'incoming request', messageLength: (message || '').length, historyLength: history?.length, mode });
+  structuredLog('info', { requestId, requesterKey, note: 'incoming request', messageLength: (message || '').length, historyLength: history?.length, mode });
 
   if (!message) return res.status(400).json({ error: 'Missing message' });
 
@@ -110,9 +112,9 @@ export default async function handler(req: any, res: any) {
   if (sanitizedMessage.length > MAX_MESSAGE_LENGTH) return res.status(400).json({ error: `Message exceeds max length of ${MAX_MESSAGE_LENGTH}` });
 
   // Rate limit per IP
-  const allowed = await checkRateLimit(ip);
+  const allowed = await checkRateLimit(requesterKey);
   if (!allowed) {
-    structuredLog('error', { requestId, ip, error: 'Rate limit exceeded' });
+    structuredLog('error', { requestId, requesterKey, error: 'Rate limit exceeded' });
     return res.status(429).json({ error: 'Too many requests' });
   }
 
@@ -122,7 +124,7 @@ export default async function handler(req: any, res: any) {
   try {
     const cached = await getCachedResponse(cacheKey);
     if (cached) {
-      structuredLog('info', { requestId, ip, cacheHit: true });
+      structuredLog('info', { requestId, requesterKey, cacheHit: true });
       return res.status(200).json({ content: cached.content, cached: true });
     }
   } catch (err) { structuredLog('error', { requestId, ip, error: err?.message || err }); }
@@ -160,7 +162,7 @@ export default async function handler(req: any, res: any) {
     const content = data.candidates?.[0]?.content || 'The ether is silent.';
     // Cache and return
     await setCachedResponse(cacheKey, content);
-    structuredLog('info', { requestId, ip, cacheKey, cached: false });
+    structuredLog('info', { requestId, requesterKey, cacheKey, cached: false });
     return res.status(200).json({ content, cached: false });
   } catch (err: any) {
     structuredLog('error', { requestId, ip, error: err?.message || err });
