@@ -69,6 +69,8 @@ function getAccessTokenFromUrl() {
   return params.get('access_token');
 }
 
+const VITE_JULES_KEY = import.meta.env.VITE_Jules_API_KEY || '';
+
 const GayaChat: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<ChatMode>('standard');
@@ -83,6 +85,7 @@ const GayaChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [accessToken, setAccessToken] = useState<string|null>(null);
+  const allowAnon = Boolean(VITE_JULES_KEY);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Active Theme
@@ -110,7 +113,7 @@ const GayaChat: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    if (!accessToken) {
+    if (!accessToken && !allowAnon) {
       alert('Please sign in with Google to use the chatbot.');
       return;
     }
@@ -210,6 +213,9 @@ const GayaChat: React.FC = () => {
                 <div>
                   <h3 className="font-display text-base font-bold tracking-wide">GAYA</h3>
                   <p className={`text-xs uppercase tracking-wider font-medium opacity-70 ${activeTheme.color}`}>{activeTheme.desc}</p>
+                  <div className="text-[10px] uppercase tracking-widest text-white/40 mt-1">
+                    {accessToken ? 'Signed in with Google' : (allowAnon ? 'Using Jules API Key (Anonymous)' : 'Please sign in to chat')}
+                  </div>
                 </div>
               </div>
               <button 
