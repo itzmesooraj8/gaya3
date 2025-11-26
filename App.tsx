@@ -7,8 +7,9 @@ import GayaChat from './components/GayaChat';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import PropertyDetails from './pages/PropertyDetails';
-import Auth from './pages/Auth';
 // import AuthCallback from './pages/AuthCallback';
+import Auth from './pages/Auth';
+import AuthCallback from './pages/AuthCallback';
 import Admin from './pages/Admin';
 import UserDashboard from './pages/UserDashboard';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -29,7 +30,7 @@ const App: React.FC = () => {
             <Route path="/home" element={<Home />} />
             <Route path="/property/:id" element={<PropertyDetails />} />
             <Route path="/auth" element={<Auth />} />
-            {/* <Route path="/auth/callback" element={<AuthCallback />} /> */}
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
