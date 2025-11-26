@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Instagram, Twitter, Linkedin, ArrowRight, Send } from 'lucide-react';
 import MagneticButton from './ui/MagneticButton';
-import OAuthDebug from './OAuthDebug';
+// import OAuthDebug from './OAuthDebug';
 
 const Footer: React.FC = () => {
   return (
@@ -94,7 +94,7 @@ const Footer: React.FC = () => {
       </div>
       {import.meta.env.VITE_ENABLE_DEBUG === 'true' && (
         <div className="max-w-7xl mx-auto px-6 md:px-12 mt-6">
-          <OAuthDebug />
+          {/* <OAuthDebug /> */}
         </div>
       )}
       

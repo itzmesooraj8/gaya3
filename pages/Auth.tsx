@@ -5,12 +5,17 @@ import { useNavigate } from 'react-router-dom';
 import MagneticButton from '../components/ui/MagneticButton';
 import { useAuth } from '../contexts/AuthContext';
 
-const GOOGLE_CLIENT_ID = "528093127718-l3u2b57f4fvg2ogp1hodpjnebokch2v5.apps.googleusercontent.com";
-const REDIRECT_URI = window.location.origin;
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "528093127718-l3u2b57f4fvg2ogp1hodpjnebokch2v5.apps.googleusercontent.com";
+// Normalize the redirect origin (no trailing slash)
+const REDIRECT_URI = window.location.origin.replace(/\/$/, '');
 const OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
-function handleGoogleAuth() {
-  const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=${OAUTH_SCOPE}`;
+async function handleGoogleAuth() {
+  const state = Math.random().toString(36).slice(2);
+  const verifier = (await import('../utils/pkce')).generateCodeVerifier();
+  const challenge = await (await import('../utils/pkce')).generateCodeChallenge(verifier);
+  try { sessionStorage.setItem('oauth_state', state); sessionStorage.setItem('pkce_code_verifier', verifier); } catch(e) { /* ignore */ }
+  const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI + '/auth/callback')}&response_type=code&scope=${OAUTH_SCOPE}&prompt=select_account&include_granted_scopes=true&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(challenge)}&code_challenge_method=S256&access_type=offline`;
   window.location.href = oauthUrl;
 }
 

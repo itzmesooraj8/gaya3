@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, X, Brain, Globe, MapPin, Zap, Send, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getJulesResponse } from '../services/geminiService';
+import { getGeminiResponse } from '../services/geminiService';
 import { ChatMessage, ChatMode } from '../types';
 
 // --- THEME CONFIGURATION ---
@@ -59,17 +59,22 @@ const MODES = [
 ];
 
 
-const GOOGLE_CLIENT_ID = "528093127718-l3u2b57f4fvg2ogp1hodpjnebokch2v5.apps.googleusercontent.com";
-const REDIRECT_URI = window.location.origin;
+// Add this to your project (e.g., in a global.d.ts or env.d.ts file):
+// declare interface ImportMetaEnv {
+//   readonly VITE_GOOGLE_CLIENT_ID?: string;
+//   // ...other env vars
+// }
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "528093127718-l3u2b57f4fvg2ogp1hodpjnebokch2v5.apps.googleusercontent.com";
+// Normalized redirect URI -- remove trailing slash for consistency with Google Console
+const REDIRECT_URI = window.location.origin.replace(/\/$/, '');
 const OAUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
-function getAccessTokenFromUrl() {
-  const hash = window.location.hash;
-  const params = new URLSearchParams(hash.replace('#', ''));
-  return params.get('access_token');
+function getAccessTokenFromStorage() {
+  try { return sessionStorage.getItem('oauth_access_token'); } catch(e) { return null; }
 }
 
-const VITE_JULES_KEY = import.meta.env.VITE_Jules_API_KEY || '';
+const VITE_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 const GayaChat: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -85,7 +90,7 @@ const GayaChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [accessToken, setAccessToken] = useState<string|null>(null);
-  const allowAnon = Boolean(VITE_JULES_KEY);
+  const allowAnon = Boolean(VITE_GEMINI_KEY);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Active Theme
@@ -98,10 +103,10 @@ const GayaChat: React.FC = () => {
   }, [messages, isTyping]);
 
   useEffect(() => {
-    const token = getAccessTokenFromUrl();
-    if (token) {
-      setAccessToken(token);
-      window.location.hash = '';
+    // 1) Pick up token from sessionStorage (populated by AuthCallback after PKCE exchange)
+    const tokenFromStorage = getAccessTokenFromStorage();
+    if (tokenFromStorage) {
+      setAccessToken(tokenFromStorage);
     }
     // Check for OAuth errors in URL query or hash
     const searchParams = new URLSearchParams(window.location.search);
@@ -111,7 +116,7 @@ const GayaChat: React.FC = () => {
       const redirectUri = REDIRECT_URI;
       console.error('OAuth error from redirect:', err, desc);
       // Show a helpful error to the user including the redirect URI
-      alert(`Google OAuth error: ${err}\n${desc}\n\nRedirect URI used: ${redirectUri}\nPlease ensure this exact URI is authorized in the Google Cloud Console.`);
+      alert(`Google OAuth error: ${err}\n${desc}\n\nRedirect URI used: ${redirectUri}\nPlease ensure this exact URI is authorized in the Google Cloud Console and the redirect origin exactly matches.`);
       // Clear params
       const url = new URL(window.location.href);
       url.search = '';
@@ -125,15 +130,19 @@ function hashParamsFromLocation() {
   return h ? `?${h}` : '';
 }
 
-  const handleGoogleLogin = () => {
-    // Add prompt=select_account to show all accounts, include_granted_scopes for incremental permission, and state
-    const state = encodeURIComponent(JSON.stringify({ ts: Date.now(), nonce: Math.random().toString(36).slice(2) }));
-    const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=${OAUTH_SCOPE}&prompt=select_account&include_granted_scopes=true&state=${state}`;
+  const handleGoogleLogin = async () => {
+    const state = Math.random().toString(36).slice(2);
+    const { generateCodeVerifier, generateCodeChallenge } = await import('../utils/pkce');
+    const verifier = generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
+    try { sessionStorage.setItem('oauth_state', state); sessionStorage.setItem('pkce_code_verifier', verifier); } catch(e) { /* ignore */ }
+    const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI + '/auth/callback')}&response_type=code&scope=${OAUTH_SCOPE}&prompt=select_account&include_granted_scopes=true&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(challenge)}&code_challenge_method=S256&access_type=offline`;
     window.location.href = oauthUrl;
   };
 
   const handleGoogleLogout = () => {
     setAccessToken(null);
+    try { sessionStorage.removeItem('oauth_access_token'); sessionStorage.removeItem('oauth_refresh_token'); } catch(e) { /* ignore */ }
     // Also clear any auth details and try redirecting to Google logout to force account switch
     // Use Google's logout endpoint to clear the current session (best-effort)
     try {
@@ -174,8 +183,8 @@ function hashParamsFromLocation() {
     setMessages(prev => [...prev, modelMsg]);
 
     try {
-      // 3. Get Jules Response
-      const response = await getJulesResponse(userMsg.text, history, mode);
+      // 3. Get Gemini Response
+      const response = await getGeminiResponse(userMsg.text, history, mode);
       setIsTyping(false);
       setMessages(prev => prev.map(msg => {
         if (msg.id === modelMsgId) {
@@ -187,7 +196,7 @@ function hashParamsFromLocation() {
         return msg;
       }));
     } catch (error: any) {
-      console.error("Jules error", error);
+      console.error("Gemini error", error);
       setIsTyping(false);
       setMessages(prev => prev.map(msg => {
         if (msg.id === modelMsgId) {
@@ -245,7 +254,7 @@ function hashParamsFromLocation() {
                   <h3 className="font-display text-base font-bold tracking-wide">GAYA</h3>
                   <p className={`text-xs uppercase tracking-wider font-medium opacity-70 ${activeTheme.color}`}>{activeTheme.desc}</p>
                   <div className="text-[10px] uppercase tracking-widest text-white/40 mt-1">
-                    {accessToken ? 'Signed in with Google' : (allowAnon ? 'Using Jules API Key (Anonymous)' : 'Please sign in to chat')}
+                    {accessToken ? 'Signed in with Google' : (allowAnon ? 'Using Gemini API Key (Anonymous)' : 'Please sign in to chat')}
                   </div>
                 </div>
               </div>
