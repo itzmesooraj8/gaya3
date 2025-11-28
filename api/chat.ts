@@ -122,18 +122,26 @@ export default async function handler(req: any, res: any) {
   const keySource = `${sanitizedMessage}::${(history || []).join('\n')}::${mode}`;
 
 
+
   import crypto from 'node:crypto';
   import Redis from 'ioredis';
 
   // Serverless API endpoint to proxy Jules/Google generative language calls.
 
   const PERSONAS: Record<string, string> = {
-    standard: `You are GAYA, a high-end aesthetic concierge. Speak in poetic, flowing prose. Focus on vibes, emotions, and sensory details.`,
-    thinking: `You are DEEP, a logistical super-intelligence. Be precise, analytical, and structured. Use bullet points.`,
-    search: `You are WEB, the ultimate insider. You know what is cool right now. Speak like a trendsetter—short, punchy.`,
-    maps: `You are MAPS, a spatial curator. Describe the world in terms of routes and proximity.`,
-    fast: `You are FAST, a silent butler. Be purely transactional. Use extremely brief phrases like 'Confirmed', 'Booked'.`
+    standard: `You are GAYA, a high-end aesthetic concierge. Speak in poetic, flowing prose.`,
+    thinking: `You are DEEP, a logistical super-intelligence. Be precise.`,
+    search: `You are WEB, the ultimate insider.`,
+    maps: `You are MAPS, a spatial curator.`,
+    fast: `You are FAST, a silent butler. Be purely transactional.`
   };
+
+  // Constants (Must be defined before use)
+  const DEFAULT_RATE_LIMIT = 60;
+  const DEFAULT_RATE_WINDOW = 60;
+  const DEFAULT_CACHE_TTL = 60;
+  const MAX_MESSAGE_LENGTH = 2000;
+  const MAX_HISTORY_ITEMS = 20;
 
   // In-memory fallback (use Redis in production)
   const MEMORY_RATE_LIMITS = new Map<string, { count: number; expiresAt: number }>();
@@ -143,12 +151,6 @@ export default async function handler(req: any, res: any) {
   if (process.env.REDIS_URL) {
     redisClient = new Redis(process.env.REDIS_URL);
   }
-
-  const DEFAULT_RATE_LIMIT = 60;
-  const DEFAULT_RATE_WINDOW = 60;
-  const DEFAULT_CACHE_TTL = 60;
-  const MAX_MESSAGE_LENGTH = 2000;
-  const MAX_HISTORY_ITEMS = 20;
 
   function getRequesterKey(req: any): string {
     const userIdHeader = req.headers['x-user-id'] || req.headers['authorization'];
