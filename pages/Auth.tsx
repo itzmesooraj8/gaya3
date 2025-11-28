@@ -42,7 +42,7 @@ const Auth: React.FC = () => {
       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
     const payload = JSON.parse(jsonPayload);
-    login('google', {
+    login('user', {
       id: payload.sub,
       name: payload.name,
       email: payload.email,
