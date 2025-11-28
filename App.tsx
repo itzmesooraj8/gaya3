@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import FluidBackground from './components/canvas/FluidBackground';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -25,7 +25,7 @@ const App: React.FC = () => {
           <Navbar />
           
           <Routes>
-            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
             <Route path="/property/:id" element={<PropertyDetails />} />
             <Route path="/checkout" element={<Checkout />} />
