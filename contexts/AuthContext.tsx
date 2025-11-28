@@ -4,7 +4,7 @@ import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  login: (role: 'user' | 'admin') => void;
+  login: (role: 'user' | 'admin' | 'google', googleUser?: Partial<User>) => void;
   logout: () => void;
 }
 
@@ -21,25 +21,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const login = (role: 'user' | 'admin') => {
-    const newUser: User = role === 'admin' 
-      ? {
-          id: 'admin-1',
-          name: 'Admin User',
-          email: 'admin@gaya3.com',
-          role: 'admin',
-          avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Admin',
-          memberStatus: 'Platinum'
-        }
-      : {
-          id: 'user-1',
-          name: 'Elena Fisher',
-          email: 'elena@nomad.com',
-          role: 'user',
-          avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena',
-          memberStatus: 'Gold'
-        };
-    
+  const login = (role: 'user' | 'admin' | 'google', googleUser?: Partial<User>) => {
+    let newUser: User;
+    if (role === 'admin') {
+      newUser = {
+        id: 'admin-1',
+        name: 'Admin User',
+        email: 'admin@gaya3.com',
+        role: 'admin',
+        avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Admin',
+        memberStatus: 'Platinum'
+      };
+    } else if (role === 'google' && googleUser) {
+      newUser = {
+        id: googleUser.id || '',
+        name: googleUser.name || '',
+        email: googleUser.email || '',
+        role: 'user',
+        avatar: googleUser.avatar || '',
+        memberStatus: 'Silver'
+      };
+    } else {
+      newUser = {
+        id: 'user-1',
+        name: 'Elena Fisher',
+        email: 'elena@nomad.com',
+        role: 'user',
+        avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena',
+        memberStatus: 'Gold'
+      };
+    }
     setUser(newUser);
     localStorage.setItem('gaya_user', JSON.stringify(newUser));
   };

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import MagneticButton from '../components/ui/MagneticButton';
@@ -30,17 +31,28 @@ const Auth: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    setIsLoading(true);
-    // Simulate OAuth delay
-    setTimeout(() => {
-      login('user');
-      navigate('/dashboard');
-      setIsLoading(false);
-    }, 1500);
+  // Real Google OAuth handler
+  const handleGoogleSuccess = (credentialResponse: any) => {
+    // Decode JWT to get user info
+    const jwt = credentialResponse.credential;
+    if (!jwt) return;
+    const base64Url = jwt.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    const payload = JSON.parse(jsonPayload);
+    login('google', {
+      id: payload.sub,
+      name: payload.name,
+      email: payload.email,
+      avatar: payload.picture
+    });
+    navigate('/dashboard');
   };
 
   return (
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || ''}>
     <div className="min-h-screen flex bg-black">
       {/* Left: Cinematic Reel */}
       <div className="hidden lg:block w-1/2 relative overflow-hidden">
@@ -119,22 +131,16 @@ const Auth: React.FC = () => {
                   </div>
                 </div>
 
-                <MagneticButton className="w-full">
-                  <button 
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                    className="w-full py-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white font-medium flex items-center justify-center gap-3 transition-all group"
-                  >
-                    {isLoading ? (
-                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <GoogleIcon />
-                        <span>{isLogin ? 'Sign in with Google' : 'Sign up with Google'}</span>
-                      </>
-                    )}
-                  </button>
-                </MagneticButton>
+                <div className="w-full">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => alert('Google Sign In Failed')}
+                    width="100%"
+                    theme="filled_black"
+                    shape="pill"
+                    text={isLogin ? 'signin_with' : 'signup_with'}
+                  />
+                </div>
                 {/* --------------------------- */}
 
                 {isLogin && (
@@ -159,6 +165,7 @@ const Auth: React.FC = () => {
         </div>
       </div>
     </div>
+    </GoogleOAuthProvider>
   );
 };
 
