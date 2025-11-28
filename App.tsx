@@ -25,7 +25,6 @@ const App: React.FC = () => {
           <Navbar />
           
           <Routes>
-            <Route path="/" element={<Home />} />
             <Route path="/home" element={<Home />} />
             <Route path="/property/:id" element={<PropertyDetails />} />
             <Route path="/checkout" element={<Checkout />} />
