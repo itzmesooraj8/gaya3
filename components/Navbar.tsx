@@ -10,11 +10,8 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-    const isActive = (path: string) => {
-      if (path === '/home') {
-        return location.pathname === '/home' ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/60 hover:text-white';
-    }
-    return location.pathname === path ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/60 hover:text-white';
+  const isActive = (path: string) => {
+    return location.pathname === '/home' ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/60 hover:text-white';
   };
 
   const handleLogout = () => {
@@ -24,36 +21,31 @@ const Navbar: React.FC = () => {
 
   return (
     <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-2 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
-        <Link to="/home">
-        <MagneticButton className={`p-3 rounded-full transition-all ${isActive('/')}`}> 
+      <Link to="/home">
+        <MagneticButton className={`p-3 rounded-full transition-all ${isActive('/home')}`}> 
           <Home size={20} />
         </MagneticButton>
       </Link>
-      
       {user && (
         <>
           <div className="w-[1px] h-6 bg-white/10 mx-1" />
-          
           {user.role === 'user' && (
             <Link to="/dashboard">
-              <MagneticButton className={`p-3 rounded-full transition-all ${isActive('/dashboard')}`}>
+              <MagneticButton className={`p-3 rounded-full transition-all ${location.pathname === '/dashboard' ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/60 hover:text-white'}`}>
                 <User size={20} />
               </MagneticButton>
             </Link>
           )}
-          
           {user.role === 'admin' && (
             <Link to="/admin">
-              <MagneticButton className={`p-3 rounded-full transition-all ${isActive('/admin')}`}>
+              <MagneticButton className={`p-3 rounded-full transition-all ${location.pathname === '/admin' ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/60 hover:text-white'}`}>
                 <LayoutDashboard size={20} />
               </MagneticButton>
             </Link>
           )}
         </>
       )}
-
       <div className="w-[1px] h-6 bg-white/10 mx-1" />
-
       {user ? (
         <MagneticButton onClick={handleLogout} className={`px-4 py-2 rounded-full bg-white/10 text-white font-semibold text-sm flex items-center gap-2 hover:bg-white/20 transition-colors`}>
           <span>Logout</span>
