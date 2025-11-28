@@ -1,9 +1,16 @@
 import crypto from 'node:crypto';
 import Redis from 'ioredis';
 
-// Serverless API endpoint to proxy Jules/Google generative language calls.
-// This keeps your API key safe and prevents exposing it in the client bundle.
-// Vercel: Place this file into `api/` to become a serverless function.
+// Constants (Must be defined before use)
+const DEFAULT_RATE_LIMIT = Number(process.env.RATE_LIMIT_PER_MIN || 60);
+const DEFAULT_RATE_WINDOW = Number(process.env.RATE_LIMIT_WINDOW_SEC || 60);
+const DEFAULT_CACHE_TTL = Number(process.env.CACHE_TTL || 60);
+const MAX_MESSAGE_LENGTH = Number(process.env.MAX_MESSAGE_LENGTH || 2000);
+const MAX_HISTORY_ITEMS = Number(process.env.MAX_HISTORY_ITEMS || 20);
+
+// In-memory fallback structures (use Redis in production for reliability)
+const MEMORY_RATE_LIMITS = new Map<string, { count: number; expiresAt: number }>();
+const MEMORY_CACHE = new Map<string, { content: string; expiresAt: number }>();
 
 const PERSONAS: Record<string, string> = {
   standard: `You are GAYA, a high-end aesthetic concierge. You speak in poetic, flowing prose (no lists). You focus on "vibes," emotions, and sensory details. If a user asks for a trip, describe the *feeling* of the air, the texture of the sheets, and the mood of the light. Be mysterious and alluring.`,
@@ -13,20 +20,10 @@ const PERSONAS: Record<string, string> = {
   fast: `You are FAST, a silent butler. You are purely transactional. Do not chat. Do not explain. Just confirm actions. Use extremely brief phrases like "Confirmed," "Booked," "Car dispatched." Your goal is zero friction.`
 };
 
-// In-memory fallback structures (use Redis in production for reliability)
-const MEMORY_RATE_LIMITS = new Map<string, { count: number; expiresAt: number }>();
-const MEMORY_CACHE = new Map<string, { content: string; expiresAt: number }>();
-
 let redisClient: Redis | null = null;
 if (process.env.REDIS_URL) {
   redisClient = new Redis(process.env.REDIS_URL);
 }
-
-const DEFAULT_RATE_LIMIT = Number(process.env.RATE_LIMIT_PER_MIN || 60);
-const DEFAULT_RATE_WINDOW = Number(process.env.RATE_LIMIT_WINDOW_SEC || 60);
-const DEFAULT_CACHE_TTL = Number(process.env.CACHE_TTL || 60);
-const MAX_MESSAGE_LENGTH = Number(process.env.MAX_MESSAGE_LENGTH || 2000);
-const MAX_HISTORY_ITEMS = Number(process.env.MAX_HISTORY_ITEMS || 20);
 
 function getRequesterKey(req: any): string {
   // Prefer an authenticated user id header if provided, otherwise fallback to IP
@@ -60,68 +57,6 @@ async function checkRateLimit(ip: string, limit = DEFAULT_RATE_LIMIT, windowSeco
   if (!entry || now > entry.expiresAt) {
     MEMORY_RATE_LIMITS.set(ip, { count: 1, expiresAt: now + windowSeconds * 1000 });
     return true;
-  }
-  entry.count += 1;
-  return entry.count <= limit;
-}
-
-async function getCachedResponse(key: string) {
-  if (redisClient) {
-    const raw = await redisClient.get(key);
-    if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
-  }
-  const mem = MEMORY_CACHE.get(key);
-  if (!mem) return null;
-  if (Date.now() > mem.expiresAt) {
-    MEMORY_CACHE.delete(key);
-    return null;
-  }
-  return { content: mem.content };
-}
-
-async function setCachedResponse(key: string, content: string, ttl = DEFAULT_CACHE_TTL) {
-  if (redisClient) {
-    await redisClient.set(key, JSON.stringify({ content }), 'EX', ttl);
-    return;
-  }
-  MEMORY_CACHE.set(key, { content, expiresAt: Date.now() + ttl * 1000 });
-}
-
-function structuredLog(level: string, obj: any) {
-  const entry = { level, ts: new Date().toISOString(), ...obj };
-  if (level === 'error') console.error(JSON.stringify(entry));
-  else console.info(JSON.stringify(entry));
-}
-
-export default async function handler(req: any, res: any) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const requestId = crypto.randomUUID();
-  const requesterKey = getRequesterKey(req);
-  const { message, history = [], mode = 'standard' } = req.body || {};
-
-  structuredLog('info', { requestId, requesterKey, note: 'incoming request', messageLength: (message || '').length, historyLength: history?.length, mode });
-
-  if (!message) return res.status(400).json({ error: 'Missing message' });
-
-  if ((history || []).length > MAX_HISTORY_ITEMS) return res.status(400).json({ error: `History too long (max ${MAX_HISTORY_ITEMS})` });
-
-  const sanitizedMessage = sanitizeMessage(message);
-  if (!sanitizedMessage) return res.status(400).json({ error: 'Empty or invalid message' });
-  if (sanitizedMessage.length > MAX_MESSAGE_LENGTH) return res.status(400).json({ error: `Message exceeds max length of ${MAX_MESSAGE_LENGTH}` });
-
-  // Rate limit per IP
-  const allowed = await checkRateLimit(requesterKey);
-  if (!allowed) {
-    structuredLog('error', { requestId, requesterKey, error: 'Rate limit exceeded' });
-    return res.status(429).json({ error: 'Too many requests' });
-  }
-
-  // Cache lookup
-  const keySource = `${sanitizedMessage}::${(history || []).join('\n')}::${mode}`;
-
-
 
   import crypto from 'node:crypto';
   import Redis from 'ioredis';
@@ -228,6 +163,41 @@ export default async function handler(req: any, res: any) {
   
     const cached = await getCachedResponse(cacheKey);
     if (cached) return res.status(200).json({ content: cached.content, cached: true });
+
+    // USE SERVER-SIDE KEY
+    const apiKey = process.env.JULES_API_KEY || process.env.GENAI_KEY || process.env.VITE_GEMINI_API_KEY;
+  
+    if (!apiKey) {
+      console.error('Missing API Key on Server');
+      return res.status(500).json({ error: 'Server configuration error (API Key)' });
+    }
+
+    try {
+      // Call Google Gemini
+      const persona = (PERSONAS as any)[mode] || PERSONAS.standard;
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: `[System]: ${persona}\n[History]: ${(history||[]).join('\n')}\n[User]: ${sanitizedMessage}` }]
+          }]
+        })
+      });
+    
+      const data = await resp.json();
+      if (!resp.ok) return res.status(502).json({ error: data?.error?.message || 'Gemini API error' });
+
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || 'The ether is silent.';
+    
+      await setCachedResponse(cacheKey, content);
+      return res.status(200).json({ content, cached: false });
+
+    } catch (err: any) {
+      console.error(err);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
 
     // USE SERVER-SIDE KEY
     const apiKey = process.env.JULES_API_KEY || process.env.GENAI_KEY || process.env.VITE_GEMINI_API_KEY;

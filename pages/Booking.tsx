@@ -1,76 +1,165 @@
-import React, { useEffect } from 'react';
+
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { CheckCircle, Zap } from 'lucide-react';
+import MagneticButton from '../components/ui/MagneticButton';
+import { useAuth } from '../contexts/AuthContext';
 
-const BookingSuccess: React.FC = () => {
+// Custom Google Icon SVG
+const GoogleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
+
+const Auth: React.FC = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  useEffect(() => {
-    // Auto-redirect after animation
-    const timer = setTimeout(() => {
+  const handleDemoLogin = (role: 'user' | 'admin') => {
+    login(role);
+    if (role === 'admin') {
+      navigate('/admin');
+    } else {
       navigate('/dashboard');
-    }, 4000);
+    }
+  };
 
-    return () => clearTimeout(timer);
-  }, [navigate]);
+  const handleGoogleLogin = () => {
+    setIsLoading(true);
+    // Simulate OAuth delay
+    setTimeout(() => {
+      login('user');
+      navigate('/dashboard');
+      setIsLoading(false);
+    }, 1500);
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black overflow-hidden relative">
-      {/* Background Burst */}
-      <div className="absolute inset-0 flex items-center justify-center">
-         <motion.div 
-           initial={{ scale: 0, opacity: 0 }}
-           animate={{ scale: 2, opacity: [0, 0.5, 0] }}
-           transition={{ duration: 1.5, ease: "easeOut" }}
-           className="w-[500px] h-[500px] bg-green-500/20 rounded-full blur-[100px]"
-         />
+    <div className="min-h-screen flex bg-black">
+      {/* Left: Cinematic Reel */}
+      <div className="hidden lg:block w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://picsum.photos/1000/1200')] bg-cover bg-center opacity-60"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent" />
+        <div className="absolute bottom-20 left-12 max-w-md p-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl">
+          <p className="text-xl italic font-light leading-relaxed mb-4">"Gaya3 isn't just booking; it's the prologue to my life's best chapters."</p>
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-full bg-gray-500" />
+             <div>
+               <p className="font-bold text-sm">Elena Fisher</p>
+               <p className="text-xs text-white/50">Travel Photographer</p>
+             </div>
+          </div>
+        </div>
       </div>
 
-      <div className="relative z-10 text-center">
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className="w-24 h-24 bg-green-500 rounded-full mx-auto mb-8 flex items-center justify-center shadow-[0_0_50px_rgba(34,197,94,0.6)]"
-        >
-           <CheckCircle size={48} className="text-black" />
-        </motion.div>
+      {/* Right: Form */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 relative z-10">
+        <div className="w-full max-w-md">
+          <div className="flex gap-8 mb-10 border-b border-white/10 pb-4">
+             <button 
+               onClick={() => setIsLogin(true)}
+               className={`text-xl font-display transition-colors ${isLogin ? 'text-white' : 'text-white/30'}`}
+             >
+               LOGIN
+             </button>
+             <button 
+               onClick={() => setIsLogin(false)}
+               className={`text-xl font-display transition-colors ${!isLogin ? 'text-white' : 'text-white/30'}`}
+             >
+               JOIN THE CLUB
+             </button>
+          </div>
 
-        <motion.h1 
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="font-display text-4xl md:text-6xl font-bold mb-4"
-        >
-          ACCESS GRANTED
-        </motion.h1>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={isLogin ? 'login' : 'register'}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              {!isLogin && (
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest text-white/50">Full Name</label>
+                  <input type="text" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-white/40" placeholder="Your Name" />
+                </div>
+              )}
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-widest text-white/50">Email Address</label>
+                <input type="email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-white/40" placeholder="name@example.com" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-widest text-white/50">Password</label>
+                <input type="password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-white/40" placeholder="••••••••" />
+              </div>
 
-        <motion.p 
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-white/60 text-lg mb-8 font-light"
-        >
-          Your sanctuary has been secured. Minting digital key...
-        </motion.p>
+              <div className="pt-2 space-y-4">
+                 <MagneticButton className="w-full">
+                  <button 
+                    className="w-full bg-white text-black py-4 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                  >
+                    {isLogin ? 'ENTER PORTAL' : 'BEGIN JOURNEY'}
+                  </button>
+                </MagneticButton>
 
-        {/* Loading Bar for Redirect */}
-        <div className="w-64 h-1 bg-white/10 rounded-full mx-auto overflow-hidden">
-           <motion.div 
-             initial={{ width: 0 }}
-             animate={{ width: "100%" }}
-             transition={{ duration: 3.5, ease: "linear" }}
-             className="h-full bg-white"
-           />
+                {/* --- GOOGLE LOGIN SECTION --- */}
+                <div className="relative py-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10"></div>
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                    <span className="bg-black px-4 text-white/40">Or continue with</span>
+                  </div>
+                </div>
+
+                <MagneticButton className="w-full">
+                  <button 
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    className="w-full py-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white font-medium flex items-center justify-center gap-3 transition-all group"
+                  >
+                    {isLoading ? (
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <GoogleIcon />
+                        <span>{isLogin ? 'Sign in with Google' : 'Sign up with Google'}</span>
+                      </>
+                    )}
+                  </button>
+                </MagneticButton>
+                {/* --------------------------- */}
+
+                {isLogin && (
+                  <div className="grid grid-cols-2 gap-3 pt-4">
+                    <button 
+                      onClick={() => handleDemoLogin('user')}
+                      className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-[10px] uppercase tracking-wider text-white/50 hover:text-white/70 transition-colors"
+                    >
+                      Demo User
+                    </button>
+                    <button 
+                      onClick={() => handleDemoLogin('admin')}
+                      className="py-3 px-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-[10px] uppercase tracking-wider text-white/50 hover:text-white/70 transition-colors"
+                    >
+                      Demo Admin
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
-        
-        <p className="text-[10px] uppercase tracking-widest text-white/30 mt-4 animate-pulse">
-           Redirecting to Mission Control
-        </p>
       </div>
     </div>
   );
 };
 
-export default BookingSuccess;
+export default Auth;
