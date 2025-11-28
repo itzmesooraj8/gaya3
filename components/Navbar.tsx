@@ -10,17 +10,22 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const isActive = (path: string) => location.pathname === path ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/60 hover:text-white';
+    const isActive = (path: string) => {
+      if (path === '/home') {
+        return location.pathname === '/home' ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/60 hover:text-white';
+    }
+    return location.pathname === path ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/60 hover:text-white';
+  };
 
   const handleLogout = () => {
     logout();
-    navigate('/home');
+      navigate('/home');
   };
 
   return (
     <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-2 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
-      <Link to="/home">
-        <MagneticButton className={`p-3 rounded-full transition-all ${isActive('/home')}`}>
+        <Link to="/home">
+        <MagneticButton className={`p-3 rounded-full transition-all ${isActive('/')}`}> 
           <Home size={20} />
         </MagneticButton>
       </Link>

@@ -4,10 +4,12 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowLeft, Star, ShieldCheck, Check, Info } from 'lucide-react';
 import MagneticButton from '../components/ui/MagneticButton';
 import { MOCK_PROPERTIES, ADDONS } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
 
 const PropertyDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const property = MOCK_PROPERTIES.find(p => p.id === id) || MOCK_PROPERTIES[0];
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
 
@@ -28,6 +30,23 @@ const PropertyDetails: React.FC = () => {
       return acc + (addon ? addon.price : 0);
     }, 0);
     return property.price + addonsTotal;
+  };
+
+  const handleReserve = () => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    const bookingData = {
+      property,
+      addons: selectedAddons,
+      totalPrice: calculateTotal(),
+      date: '2024-06-15', // Mock date for MVP
+      guests: 2 // Mock guest count
+    };
+
+    navigate('/checkout', { state: bookingData });
   };
 
   return (
@@ -145,7 +164,10 @@ const PropertyDetails: React.FC = () => {
             </div>
 
             <MagneticButton className="w-full">
-              <button className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors">
+              <button 
+                onClick={handleReserve}
+                className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors"
+              >
                 RESERVE NOW
               </button>
             </MagneticButton>

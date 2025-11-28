@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  // Debug log removed
+
   return {
     server: {
       port: 3000,
@@ -12,8 +14,8 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react()],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+      // Force inject the key
+      '__APP_GEMINI_API_KEY__': JSON.stringify(env.VITE_GEMINI_API_KEY),
     },
     resolve: {
       alias: {
